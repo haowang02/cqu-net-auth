@@ -36,3 +36,16 @@ docker run -d \
 ```bash
 docker logs -f cqu-net-auth
 ```
+
+## 其他常用命令
+
+登出校园网
+
+```bash
+curl http://10.254.7.4:801/eportal/portal/logout
+```
+
+检查当前认证的校园网账户
+```bash
+curl -s "http://10.254.7.4/" | iconv -f GBK -t UTF-8 | grep -oP "uid='.*?'|NID='.*?'"
+```
