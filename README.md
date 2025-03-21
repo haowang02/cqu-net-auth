@@ -6,8 +6,8 @@
 
 ```
 pip install requests
-USERNAME=校园网账户 PASSWORD=校园网密码 TYPE=设备类型 IP=待认证的校园网IP python login.py
-# 注意：设备类型选填 android 或 pc
+USERNAME=校园网账户 PASSWORD=校园网密码 TERM_TYPE=终端类型 IP=待认证的校园网IP python login.py
+# 注意：终端类型选填 android 或 pc
 ```
 
 ## Docker 容器运行
@@ -26,7 +26,7 @@ docker run -d \
     --restart always \
     -e USERNAME="校园网账户" \
     -e PASSWORD="校园网密码" \
-    -e TYPE="设备类型" \           # 注意：设备类型选填 android 或 pc
+    -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 android 或 pc
     -e IP="待认证的校园网IP" \
     cqu-net-auth
 ```
