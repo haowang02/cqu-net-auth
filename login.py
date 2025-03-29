@@ -121,13 +121,16 @@ def main():
     interval = 5
 
     # 首次认证
-    ip = get_ip()
-    logger.info(f"开始认证: 账户({account}), 设备类型({term_type}), 设备IP({ip})")
-    success, response = login(account, password, term_type, ip)
-    if not success:
-        logger.error(f"认证失败: {response}")
-        sys.exit(-1)
-    logger.info(f"认证成功: {get_account()}")
+    if not is_internet_connected():
+        ip = get_ip()
+        logger.info(f"开始认证: 账户({account}), 设备类型({term_type}), 设备IP({ip})")
+        success, response = login(account, password, term_type, ip)
+        if not success:
+            logger.error(f"认证失败: {response}")
+            sys.exit(-1)
+        logger.info(f"认证成功: {get_account()}")
+    else:
+        logger.info("该网络已认证")
     logger.info(f"开始每{interval}秒检查一次网络状态，如果掉线则重新认证")
     logger.info(f"如果需要停止程序，请使用 Ctrl+C 停止")
 
