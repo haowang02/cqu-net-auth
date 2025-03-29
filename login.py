@@ -1,21 +1,29 @@
-import fcntl
-import logging
 import os
-import signal
-import socket
-import struct
+import re
 import sys
 import time
+import signal
+import socket
+import logging
 import urllib.error
 import urllib.request
 
 logger = None
 
 
-def get_ip(ifname):
-    """获取本机WAN口的ip"""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, struct.pack('256s', bytes(ifname[:15], 'utf-8')))[20:24])
+def get_ip():
+    """获取待认证的ip"""
+    try:
+        with urllib.request.urlopen('http://10.254.7.4/a79.htm', timeout=5) as response:
+            html = response.read().decode('GB2312')
+            match = re.search(r"v46ip='([^']+)'", html)
+            if match:
+                v46ip = match.group(1)
+                return v46ip
+            else:
+                return None
+    except urllib.error.URLError:
+        return None
 
 
 def is_internet_connected(host="223.6.6.6", port=53, timeout=1, max_retries=3):
@@ -97,15 +105,12 @@ def main():
     username = os.getenv("USERNAME")
     password = os.getenv("PASSWORD")
     term_type = os.getenv("TERM_TYPE")
-    wan = os.getenv("WAN")
-    # IP和WAN二选一即可
-    ip = os.getenv("IP") or get_ip(wan)
     log_level = os.getenv("LOG_LEVEL")
 
     set_logger(log_level)
 
-    if not username or not password or not term_type or not ip:
-        logger.error("请通过环境变量指定用户名、密码、登录设备类型和登录设备IP或WAN口名称")
+    if not username or not password or not term_type:
+        logger.error("请通过环境变量指定用户名、密码、登录设备类型")
         sys.exit(-1)
 
     if term_type not in ["android", "pc"]:
@@ -116,6 +121,7 @@ def main():
     interval = 5
 
     # 首次认证
+    ip = get_ip()
     logger.info(f"开始认证: 账户({username}), 设备类型({term_type}), 设备IP({ip})")
     success, response = login(username, password, term_type, ip)
     if not success:
@@ -129,8 +135,8 @@ def main():
         while True:
             time.sleep(interval)
             if not is_internet_connected():
-                logger.info(
-                    f"网络已断开，重新认证: 账户({username}), 设备类型({term_type}), 设备IP({ip})")
+                logger.info(f"网络已断开，重新认证: 账户({username}), 设备类型({term_type}), 设备IP({ip})")
+                ip = get_ip()
                 success, response = login(username, password, term_type, ip)
                 if not success:
                     logger.warning(f"认证失败: {response}, {interval}秒后重试...")
