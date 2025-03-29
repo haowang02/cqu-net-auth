@@ -117,29 +117,18 @@ def main():
         logger.error("登录设备类型必须为 android 或 pc")
         sys.exit(-1)
 
-    # 每5秒检查一次网络状态，如果掉线则重新认证
+    # 每5秒检查一次网络状态, 如果掉线则重新认证
     interval = 5
 
-    # 首次认证
-    if not is_internet_connected():
-        ip = get_ip()
-        logger.info(f"开始认证: 账户({account}), 设备类型({term_type}), 设备IP({ip})")
-        success, response = login(account, password, term_type, ip)
-        if not success:
-            logger.error(f"认证失败: {response}")
-            sys.exit(-1)
-        logger.info(f"认证成功: {get_account()}")
-    else:
-        logger.info("该网络已认证")
-    logger.info(f"开始每{interval}秒检查一次网络状态，如果掉线则重新认证")
-    logger.info(f"如果需要停止程序，请使用 Ctrl+C 停止")
-
+    first = True
     try:
         while True:
-            time.sleep(interval)
             if not is_internet_connected():
-                logger.info(f"网络已断开，重新认证: 账户({account}), 设备类型({term_type}), 设备IP({ip})")
                 ip = get_ip()
+                if not ip:
+                    logger.warning("获取IP失败, 请检查 DHCP 是否正常")
+                    continue
+                logger.info(f"正在认证: 账户({account}), 设备类型({term_type}), 设备IP({ip})")
                 success, response = login(account, password, term_type, ip)
                 if not success:
                     logger.warning(f"认证失败: {response}, {interval}秒后重试...")
@@ -147,6 +136,11 @@ def main():
                     logger.info(f"认证成功: {get_account()}")
             else:
                 logger.debug("该网络已认证")
+            if first:
+                first = False
+                logger.info(f"每{interval}秒检查一次网络状态, 如果掉线则重新认证")
+                logger.info(f"如果需要停止程序, 请使用 Ctrl+C 停止")
+            time.sleep(interval)
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received (Ctrl+C), exiting...")
         sys.exit(0)
