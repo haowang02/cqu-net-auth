@@ -7,6 +7,7 @@ import socket
 import logging
 import urllib.error
 import urllib.request
+import argparse
 
 logger = None
 
@@ -91,26 +92,34 @@ def set_logger(log_level: str):
 
 def signal_handler(signum, frame):
     """
-    信号处理函数，处理 SIGTERM 信号
+    信号处理函数，处理 SIGTERM/SIGINT 信号
     """
     global logger
     logger.info(f"Received signal {signum}, exiting...")
     sys.exit(0)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--account", type=str, default=os.getenv("ACCOUNT", ""), help="校园网账户(学/工号)")
+    parser.add_argument("--password", type=str, default=os.getenv("PASSWORD", ""), help="校园网密码")
+    parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["android", "pc"], help="登录设备类型")
+    parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVLE", "info"), choices=["debug", "info"], help="日志级别")
+    args = parser.parse_args()
+    return args.account, args.password, args.term_type, args.log_level
+
+
 def main():
     global logger
     signal.signal(signal.SIGTERM, signal_handler)
-    # 从环境变量中获取认证所需信息
-    account = os.getenv("ACCOUNT")
-    password = os.getenv("PASSWORD")
-    term_type = os.getenv("TERM_TYPE")
-    log_level = os.getenv("LOG_LEVEL")
+    signal.signal(signal.SIGINT, signal_handler)
+
+    account, password, term_type, log_level = parse_args()
 
     set_logger(log_level)
 
-    if not account or not password or not term_type:
-        logger.error("请通过环境变量指定用户名、密码、登录设备类型")
+    if not account or not password:
+        logger.error("未指定校园网账户或密码")
         sys.exit(-1)
 
     if term_type not in ["android", "pc"]:
@@ -135,7 +144,7 @@ def main():
                 else:
                     logger.info(f"认证成功: {get_account()}")
             else:
-                logger.debug("该网络已认证")
+                logger.debug(f"该网络已认证, 认证账户: {get_account()}")
             if first:
                 first = False
                 logger.info(f"每{interval}秒检查一次网络状态, 如果掉线则重新认证")

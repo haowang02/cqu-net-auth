@@ -5,7 +5,12 @@
 ## 直接运行
 
 ```
+# 环境变量传参
 ACCOUNT=校园网账户(学工号) PASSWORD=校园网密码 TERM_TYPE=终端类型 python login.py
+# 注意：终端类型选填 android 或 pc
+
+# 命令行传参 (兼容 Windows 系统)
+python login.py --account 校园网账户(学工号) --password 校园网密码 --term_type 终端类型
 # 注意：终端类型选填 android 或 pc
 ```
 
