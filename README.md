@@ -5,7 +5,7 @@
 ## 直接运行
 
 ```
-USERNAME=校园网账户 PASSWORD=校园网密码 TERM_TYPE=终端类型 python login.py
+ACCOUNT=校园网账户(学工号) PASSWORD=校园网密码 TERM_TYPE=终端类型 python login.py
 # 注意：终端类型选填 android 或 pc
 ```
 
@@ -23,7 +23,7 @@ docker build -t cqu-net-auth .
 docker run -d \
     --name cqu-net-auth \
     --restart always \
-    -e USERNAME="校园网账户" \
+    -e ACCOUNT="校园网账户(学工号)" \
     -e PASSWORD="校园网密码" \
     -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 android 或 pc
     cqu-net-auth
