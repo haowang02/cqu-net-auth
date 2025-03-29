@@ -104,7 +104,7 @@ def parse_args():
     parser.add_argument("--account", type=str, default=os.getenv("ACCOUNT", ""), help="校园网账户(学/工号)")
     parser.add_argument("--password", type=str, default=os.getenv("PASSWORD", ""), help="校园网密码")
     parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["android", "pc"], help="登录设备类型")
-    parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVLE", "info"), choices=["debug", "info"], help="日志级别")
+    parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVEL", "info"), choices=["debug", "info"], help="日志级别")
     args = parser.parse_args()
     return args.account, args.password, args.term_type, args.log_level
 
