@@ -5,8 +5,12 @@
 ## 直接运行
 
 ```
-pip install requests
+# 指定IP
 USERNAME=校园网账户 PASSWORD=校园网密码 TERM_TYPE=终端类型 IP=待认证的校园网IP python login.py
+
+# 指定WAN口（适用于路由器）
+USERNAME=校园网账户 PASSWORD=校园网密码 TERM_TYPE=终端类型 WAN=路由器WAN口如eth0 python login.py
+
 # 注意：终端类型选填 android 或 pc
 ```
 
@@ -21,6 +25,7 @@ docker build -t cqu-net-auth .
 启动:
 
 ```bash
+# 指定IP
 docker run -d \
     --name cqu-net-auth \
     --restart always \
@@ -28,6 +33,16 @@ docker run -d \
     -e PASSWORD="校园网密码" \
     -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 android 或 pc
     -e IP="待认证的校园网IP" \
+    cqu-net-auth
+
+# 指定WAN口（适用于路由器）
+docker run -d \
+    --name cqu-net-auth \
+    --restart always \
+    -e USERNAME="校园网账户" \
+    -e PASSWORD="校园网密码" \
+    -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 android 或 pc
+    -e WAN="路由器WAN口如eth0" \
     cqu-net-auth
 ```
 
