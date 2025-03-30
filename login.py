@@ -18,12 +18,8 @@ def get_ip():
     try:
         with urllib.request.urlopen('http://10.254.7.4/a79.htm', timeout=5) as response:
             html = response.read().decode('GB2312')
-            match = re.search(r"v46ip='([^']+)'", html)
-            if match:
-                v46ip = match.group(1)
-                return v46ip
-            else:
-                return None
+            v46ip_match = re.search(r"v46ip='([^']+)'", html)
+            return v46ip_match.group(1) if v46ip_match else None
     except urllib.error.URLError:
         return None
 
@@ -46,16 +42,13 @@ def get_account():
     try:
         with urllib.request.urlopen('http://10.254.7.4/', timeout=5) as response:
             html = response.read().decode('GB2312')
-            html = [i.strip() for i in html.split(";")]
-            uid_list = list(filter(lambda x: x.startswith("uid="), html))
-            nid_list = list(filter(lambda x: x.startswith("NID="), html))
-            if len(uid_list) <= 0 or len(nid_list) <= 0:
-                return None
-            id = uid_list[0].split("\'")[1]
-            name = nid_list[0].split("\'")[1]
-            return f"{name}({id})"
+            id_match = re.search(r"uid='([^']*)'", html)
+            name_match = re.search(r"NID='([^']*)'", html)
+            id = id_match.group(1) if id_match else None
+            name = name_match.group(1) if name_match else None
+            return id, name
     except urllib.error.URLError:
-        return None
+        return None, None
 
 
 def login(account: str, password: str, term_type: str, ip: str):
@@ -74,8 +67,12 @@ def login(account: str, password: str, term_type: str, ip: str):
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             content = response.read().decode('utf-8')
-            result = json.loads(content.strip().strip("dr1004();"))
-            return result["result"], result["msg"]
+            match = re.search(r'\(([\s\S]*?)\);', content)
+            if match:
+                result = json.loads(match.group(1))
+                return result["result"], result["msg"]
+            else:
+                return 0, "未知错误"
     except urllib.error.URLError:
         return 0, "网络错误"
 
