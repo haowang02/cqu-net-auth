@@ -20,7 +20,7 @@ def get_ip():
             html = response.read().decode('GB2312')
             v46ip_match = re.search(r"v46ip='([^']+)'", html)
             return v46ip_match.group(1) if v46ip_match else None
-    except urllib.error.URLError:
+    except Exception as e:
         return None
 
 
@@ -47,7 +47,7 @@ def get_account():
             id = id_match.group(1) if id_match else None
             name = name_match.group(1) if name_match else None
             return id, name
-    except urllib.error.URLError:
+    except Exception as e:
         return None, None
 
 
@@ -73,8 +73,8 @@ def login(account: str, password: str, term_type: str, ip: str):
                 return result["result"], result["msg"]
             else:
                 return 0, "未知错误"
-    except urllib.error.URLError:
-        return 0, "网络错误"
+    except Exception as e:
+        return 0, f"网络错误: {e}"
 
 
 def set_logger(log_level: str):
