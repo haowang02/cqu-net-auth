@@ -24,17 +24,14 @@ def get_ip():
         return None
 
 
-def is_internet_connected(host="223.6.6.6", port=53, timeout=1, max_retries=3):
+def is_internet_connected(host="223.6.6.6", port=53, timeout=3):
     """检查是否连接到互联网"""
-    retries = 0
-    while retries < max_retries:
-        try:
-            conn = socket.create_connection((host, port), timeout=timeout)
-            conn.close()
-            return True
-        except Exception as e:
-            retries += 1
-    return False
+    try:
+        conn = socket.create_connection((host, port), timeout=timeout)
+        conn.close()
+        return True
+    except Exception as e:
+        return False
 
 
 def get_account():
