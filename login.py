@@ -32,6 +32,29 @@ def is_internet_connected(host="223.6.6.6", port=53, timeout=3):
         return True
     except Exception as e:
         return False
+    
+def is_http_connected(url, timeout=5):
+    try:
+        response = urllib.request.urlopen(url, timeout=timeout)
+
+        if response.getcode() == 200:
+            logger.debug(f"访问 {url} 成功, 状态码: {response.getcode()}")
+            return True
+        else:
+            logger.warning(f"访问 {url} 失败, 状态码: {response.getcode()}")
+            return False
+    except urllib.error.URLError as e:
+        # 捕获 URL 错误，例如无法连接到服务器、超时等
+        logger.warning(f"访问 {url} 失败: {e.reason}")
+        return False
+    except urllib.error.HTTPError as e:
+        # 捕获 HTTP 错误，例如 404、500 等
+        logger.warning(f"访问 {url} 失败, HTTP 错误: {e.code} - {e.reason}")
+        return False
+    except Exception as e:
+        # 捕获其他异常
+        logger.error(f"访问 {url} 失败: {e}")
+        return False
 
 
 def get_account():
@@ -97,6 +120,12 @@ def parse_args():
     parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["android", "pc"], help="登录设备类型")
     parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVEL", "info"), choices=["debug", "info"], help="日志级别")
     parser.add_argument("--interval", type=int, default=os.getenv("INTERVAL", 5), help="检查网络状态的间隔时间(秒)")
+    parser.add_argument("--check_with_http", type=bool, default=os.getenv("CHECK_WITH_HTTP", False), help="是否使用 HTTP 连接的的结果检查网络状态，默认为 False")
+    parser.add_argument(
+        "--http_url", type=str, 
+        default=os.getenv("HTTP_URL", "https://www.baidu.com"), 
+        help="使用 HTTP 检查网络状态时访问的 URL, 仅在 --check_with_http 为 true 时有效"
+    )
     args = parser.parse_args()
     
     # 验证参数
@@ -108,7 +137,7 @@ def parse_args():
         logger.error("登录设备类型必须为 android 或 pc")
         sys.exit(-1)
     
-    return args.account, args.password, args.term_type, args.log_level, args.interval
+    return args.account, args.password, args.term_type, args.log_level, args.interval, args.check_with_http, args.http_url
 
 
 def main():
@@ -116,14 +145,20 @@ def main():
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
     signal.signal(signal.SIGINT, lambda signum, frame: sys.exit(0))
 
-    account, password, term_type, log_level, interval = parse_args()
+    account, password, term_type, log_level, interval, check_with_http, http_url = parse_args()
 
     set_logger(log_level)
 
     logger.info(f"每{interval}秒检查一次网络状态, 如果掉线则重新认证, CTRL+C 停止程序")
     while True:
         # 如果网络已经认证, 则不再重复认证
-        if is_internet_connected():
+        connected = False
+        if check_with_http:
+            connected = is_http_connected(http_url)
+        else:  
+            connected=is_internet_connected()
+
+        if connected:
             logger.debug(f"该网络已认证, 认证账户: {get_account()}, {interval}秒后重新检查网络状态...")
             time.sleep(interval)
             continue
