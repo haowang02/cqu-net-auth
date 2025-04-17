@@ -155,7 +155,7 @@ def login(account: str, password: str, term_type: str, ip: str, timeout=3, inter
 
 
 def logout(timeout=3, interface=None):
-    """登出校园网"""
+    """注销当前认证账户"""
     create_and_install_opener(interface=interface)
     req = urllib.request.Request(LOGOUT_URL)
     try:
@@ -236,8 +236,8 @@ def main():
             time.sleep(interval)
             continue
         
-        # 如果 auth_info 中的 uid 与 account 不一致, 则首先登出校园网
-        if auth_info.get("uid", "") != account and logout(interface=interface):
+        # 如果当前已认证, 且 uid 与 account 不一致, 则先注销当前认证账户
+        if "uid" in auth_info and auth_info["uid"] != account and logout(interface=interface):
             logger.info(f"已注销当前认证账户[{auth_info['NID']} {auth_info['uid']}]")
             auth_info = get_auth_info(interface=interface)
         
