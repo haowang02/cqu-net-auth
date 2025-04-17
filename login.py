@@ -237,7 +237,7 @@ def main():
             continue
         
         # 如果 auth_info 中的 uid 与 account 不一致, 则首先登出校园网
-        if auth_info['uid'] != account and logout(interface=interface):
+        if auth_info.get("uid", "") != account and logout(interface=interface):
             logger.info(f"已注销当前认证账户[{auth_info['NID']} {auth_info['uid']}]")
             auth_info = get_auth_info(interface=interface)
         
