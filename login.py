@@ -48,6 +48,18 @@ def get_interface_ip(interface):
         return None
 
 
+def create_and_install_opener(interface=None):
+    """创建并安装自定义opener以设置源地址"""
+    opener = urllib.request.build_opener()
+    if interface:
+        interface_ip = get_interface_ip(interface)
+        if interface_ip:
+            opener.add_handler(SourceAddressHandler((interface_ip, 0)))
+        else:
+            logger.debug(f"无法获取接口 {interface} 的IP地址，将使用系统默认接口")
+    urllib.request.install_opener(opener)
+
+
 def is_internet_connected(host="223.6.6.6", port=53, timeout=3, interface=None):
     """通过 socket 检查是否连接到互联网"""
     # 动态获取接口IP
@@ -72,21 +84,11 @@ def is_internet_connected(host="223.6.6.6", port=53, timeout=3, interface=None):
 
 def is_http_connected(url="https://www.baidu.com", timeout=3, interface=None):
     """通过 http 检查是否连接到互联网"""
-    # 动态获取接口IP
-    interface_ip = None
-    if interface:
-        interface_ip = get_interface_ip(interface)
-        if not interface_ip:
-            logger.debug(f"无法获取接口 {interface} 的IP地址，将使用系统默认接口")
-    
+    create_and_install_opener(interface=interface)
+    req = urllib.request.Request(url)
+    req.get_method = lambda: 'HEAD'  # 使用HEAD方法请求
     try:
-        # 创建自定义opener以设置源地址
-        opener = urllib.request.build_opener()
-        if interface_ip:
-            opener.add_handler(SourceAddressHandler((interface_ip, 0)))
-        
-        urllib.request.install_opener(opener)
-        response = urllib.request.urlopen(url, timeout=timeout)
+        response = urllib.request.urlopen(req, timeout=timeout)
         if response.getcode() == 200:
             return True
     except Exception as e:
@@ -123,20 +125,7 @@ def drcom_message_parser(drcom_message):
 
 def get_auth_info(timeout=3, interface=None):
     """获取 IP, ACCOUNT 等信息"""
-    # 动态获取接口IP
-    interface_ip = None
-    if interface:
-        interface_ip = get_interface_ip(interface)
-        if not interface_ip:
-            logger.debug(f"无法获取接口 {interface} 的IP地址，将使用系统默认接口")
-    
-    # 创建自定义opener以设置源地址
-    opener = urllib.request.build_opener()
-    if interface_ip:
-        opener.add_handler(SourceAddressHandler((interface_ip, 0)))
-    
-    urllib.request.install_opener(opener)
-    
+    create_and_install_opener(interface=interface)
     req = urllib.request.Request(AUTH_INFO_URL)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -150,25 +139,11 @@ def get_auth_info(timeout=3, interface=None):
 
 def login(account: str, password: str, term_type: str, ip: str, timeout=3, interface=None):
     """认证校园网"""
-    # 动态获取接口IP
-    interface_ip = None
-    if interface:
-        interface_ip = get_interface_ip(interface)
-        if not interface_ip:
-            logger.debug(f"无法获取接口 {interface} 的IP地址，将使用系统默认接口")
-    
     if term_type == 'android':
         url = ANDROID_AUTH_URL
     else:
         url = PC_AUTH_URL
-        
-    # 创建自定义opener以设置源地址
-    opener = urllib.request.build_opener()
-    if interface_ip:
-        opener.add_handler(SourceAddressHandler((interface_ip, 0)))
-    
-    urllib.request.install_opener(opener)
-    
+    create_and_install_opener(interface=interface)
     req = urllib.request.Request(url.format(account=account, password=password, ip=ip))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
