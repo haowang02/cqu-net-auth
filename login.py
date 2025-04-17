@@ -239,7 +239,8 @@ def main():
         # 如果当前已认证, 且 uid 与 account 不一致, 则先注销当前认证账户
         if "uid" in auth_info and auth_info["uid"] != account and logout(interface=interface):
             logger.info(f"已注销当前认证账户[{auth_info['NID']} {auth_info['uid']}]")
-            auth_info = get_auth_info(interface=interface)
+            del auth_info["uid"]
+            del auth_info["NID"]
         
         # 检查互联网连接状态, 如果 auth_info["NID"] 不存在则表示未认证, 可以跳过互联网连接检查
         if "NID" in auth_info and check_internet(method=check_method, interface=interface, **check_params):
