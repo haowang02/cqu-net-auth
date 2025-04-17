@@ -14,6 +14,7 @@ logger = None
 ANDROID_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1005&login_method=1&user_account=%2C1%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Linux%3B%20Android%208.0.0%3B%20SM-G955U%20Build%2FR16NW)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Mobile%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=2&jsVersion=4.2&terminal_type=2&lang=zh-cn&v=9451&lang=zh"
 PC_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1004&login_method=1&user_account=%2C0%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=1&jsVersion=4.2&terminal_type=1&lang=zh-cn&v=9875&lang=zh"
 AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
+LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/logout"
 
 
 class SourceAddressHandler(urllib.request.HTTPHandler):
@@ -153,6 +154,19 @@ def login(account: str, password: str, term_type: str, ip: str, timeout=3, inter
         return 0, f"网络错误: {e}"
 
 
+def logout(timeout=3, interface=None):
+    """登出校园网"""
+    create_and_install_opener(interface=interface)
+    req = urllib.request.Request(LOGOUT_URL)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.getcode() == 200 and "注销成功" in response.read().decode('utf-8'):
+                return True
+            return False
+    except Exception:
+        return False
+
+
 def set_logger(log_level: str):
     global logger
     if log_level and log_level.lower() == "debug":
@@ -176,7 +190,7 @@ def parse_args():
     parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["android", "pc"], help="登录设备类型")
     parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVEL", "info"), choices=["debug", "info"], help="日志级别")
     parser.add_argument("--interval", type=int, default=os.getenv("INTERVAL", 5), help="检查网络状态的间隔时间(秒)")
-    parser.add_argument("--check_with_http", type=bool, default=os.getenv("CHECK_WITH_HTTP", False), help="是否使用 HTTP 连接的的结果检查网络状态，默认为 False")
+    parser.add_argument("--check_with_http", action='store_true', default=os.getenv("CHECK_WITH_HTTP", "False").lower() in ('true', 'yes', '1', 't', 'y'), help="使用 HTTP 连接的的结果检查网络状态，默认为 False")
     parser.add_argument("--http_url", type=str, default=os.getenv("HTTP_URL", "https://www.baidu.com"), help="使用 HTTP 检查网络状态时访问的 URL, 仅在 --check_with_http 为 true 时有效")
     parser.add_argument("--interface", type=str, default=os.getenv("INTERFACE", ""), help="指定使用的网络接口名称，如eth0、wlan0等")
     
@@ -221,6 +235,11 @@ def main():
             logger.warning(f"无法获取校园网 IP, 请检查链路是否正常, {interval}秒后重试...")
             time.sleep(interval)
             continue
+        
+        # 如果 auth_info 中的 uid 与 account 不一致, 则首先登出校园网
+        if auth_info['uid'] != account and logout(interface=interface):
+            logger.info(f"已注销当前认证账户[{auth_info['NID']} {auth_info['uid']}]")
+            auth_info = get_auth_info(interface=interface)
         
         # 检查互联网连接状态, 如果 auth_info["NID"] 不存在则表示未认证, 可以跳过互联网连接检查
         if "NID" in auth_info and check_internet(method=check_method, interface=interface, **check_params):
