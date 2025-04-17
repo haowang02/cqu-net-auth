@@ -139,12 +139,9 @@ def get_auth_info(timeout=3, interface=None):
 
 def login(account: str, password: str, term_type: str, ip: str, timeout=3, interface=None):
     """认证校园网"""
-    if term_type == 'android':
-        url = ANDROID_AUTH_URL
-    else:
-        url = PC_AUTH_URL
     create_and_install_opener(interface=interface)
-    req = urllib.request.Request(url.format(account=account, password=password, ip=ip))
+    auth_url = ANDROID_AUTH_URL if term_type == "android" else PC_AUTH_URL
+    req = urllib.request.Request(auth_url.format(account=account, password=password, ip=ip))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             if response.getcode() != 200:
