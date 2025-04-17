@@ -85,8 +85,7 @@ def is_internet_connected(host="223.6.6.6", port=53, timeout=3, interface=None):
 def is_http_connected(url="https://www.baidu.com", timeout=3, interface=None):
     """通过 http 检查是否连接到互联网"""
     create_and_install_opener(interface=interface)
-    req = urllib.request.Request(url)
-    req.get_method = lambda: 'HEAD'  # 使用HEAD方法请求
+    req = urllib.request.Request(url, method='HEAD')
     try:
         response = urllib.request.urlopen(req, timeout=timeout)
         if response.getcode() == 200:
