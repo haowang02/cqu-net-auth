@@ -6,93 +6,96 @@ import json
 import signal
 import socket
 import logging
-import urllib.error
 import urllib.request
 import argparse
 
 logger = None
-
-
-def get_ip():
-    """获取待认证的ip"""
-    try:
-        with urllib.request.urlopen('http://10.254.7.4/a79.htm', timeout=5) as response:
-            html = response.read().decode('GB2312')
-            v46ip_match = re.search(r"v46ip='([^']+)'", html)
-            return v46ip_match.group(1) if v46ip_match else None
-    except Exception as e:
-        return None
+ANDROID_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1005&login_method=1&user_account=%2C1%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Linux%3B%20Android%208.0.0%3B%20SM-G955U%20Build%2FR16NW)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Mobile%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=2&jsVersion=4.2&terminal_type=2&lang=zh-cn&v=9451&lang=zh"
+PC_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1004&login_method=1&user_account=%2C0%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=1&jsVersion=4.2&terminal_type=1&lang=zh-cn&v=9875&lang=zh"
+AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
 
 
 def is_internet_connected(host="223.6.6.6", port=53, timeout=3):
-    """检查是否连接到互联网"""
+    """通过 socket 检查是否连接到互联网"""
     try:
         conn = socket.create_connection((host, port), timeout=timeout)
         conn.close()
         return True
     except Exception as e:
         return False
-    
-def is_http_connected(url, timeout=5):
+
+
+def is_http_connected(url="https://www.baidu.com", timeout=3):
+    """通过 http 检查是否连接到互联网"""
     try:
         response = urllib.request.urlopen(url, timeout=timeout)
-
         if response.getcode() == 200:
-            logger.debug(f"访问 {url} 成功, 状态码: {response.getcode()}")
             return True
-        else:
-            logger.warning(f"访问 {url} 失败, 状态码: {response.getcode()}")
-            return False
-    except urllib.error.URLError as e:
-        # 捕获 URL 错误，例如无法连接到服务器、超时等
-        logger.warning(f"访问 {url} 失败: {e.reason}")
-        return False
-    except urllib.error.HTTPError as e:
-        # 捕获 HTTP 错误，例如 404、500 等
-        logger.warning(f"访问 {url} 失败, HTTP 错误: {e.code} - {e.reason}")
-        return False
-    except Exception as e:
-        # 捕获其他异常
-        logger.error(f"访问 {url} 失败: {e}")
+    except Exception:
         return False
 
 
-def get_account():
-    """获取当前认证的账户"""
+def check_internet(method="socket", **kwargs):
+    """检查互联网连接状态"""
+    if method == "socket":
+        return is_internet_connected(**kwargs)
+    elif method == "http":
+        return is_http_connected(**kwargs)
+    else:
+        raise ValueError("method must be 'socket' or 'http'")
+
+
+def drcom_message_parser(drcom_message):
+    """将形如 `dr1004(...);` 或 `dr1002(...)` 的内容解析为 dict"""
+    if isinstance(drcom_message, bytes):
+        drcom_message = drcom_message.decode('GB2312')
+    
+    match = re.search(r'dr\d+\((.*?)\);?', drcom_message)
+    if match:
+        json_str = match.group(1)
+        try:
+            result = json.loads(json_str)
+            return result
+        except json.JSONDecodeError:
+            return None
+    else:
+        return None
+
+
+def get_auth_info(timeout=3):
+    """获取 IP, ACCOUNT 等信息"""
+    req = urllib.request.Request(AUTH_INFO_URL)
     try:
-        with urllib.request.urlopen('http://10.254.7.4/', timeout=5) as response:
-            html = response.read().decode('GB2312')
-            id_match = re.search(r"uid='([^']*)'", html)
-            name_match = re.search(r"NID='([^']*)'", html)
-            id = id_match.group(1) if id_match else None
-            name = name_match.group(1) if name_match else None
-            return id, name
-    except Exception as e:
-        return None, None
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.getcode() == 200:
+                return drcom_message_parser(response.read().decode('GB2312'))
+            return None
+    except Exception:
+        return None
 
 
-def login(account: str, password: str, term_type: str, ip: str):
+def login(account: str, password: str, term_type: str, ip: str, timeout=3):
     """认证校园网
     dr1004({"result":1,"msg":"Portal协议认证成功！"});
     dr1004({"result":0,"msg":"账号不存在","ret_code":1});
     dr1004({"result":0,"msg":"密码错误","ret_code":1});
     dr1004({"result":0,"msg":"认证操作非本机终端！","ret_code":"1"});
     dr1004({"result":0,"msg":"认证出现异常！","ret_code":"1"});
+    dr1004({"result":0,"msg":"IP: x.x.x.x 已经在线！","ret_code":"1"});
     """
     if term_type == 'android':
-        url = f"http://10.254.7.4:801/eportal/portal/login?callback=dr1005&login_method=1&user_account=%2C1%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Linux%3B%20Android%208.0.0%3B%20SM-G955U%20Build%2FR16NW)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Mobile%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=2&jsVersion=4.2&terminal_type=2&lang=zh-cn&v=9451&lang=zh"
+        url = ANDROID_AUTH_URL
     else:
-        url = f"http://10.254.7.4:801/eportal/portal/login?callback=dr1004&login_method=1&user_account=%2C0%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=1&jsVersion=4.2&terminal_type=1&lang=zh-cn&v=9875&lang=zh"
-    req = urllib.request.Request(url)
+        url = PC_AUTH_URL
+    req = urllib.request.Request(url.format(account=account, password=password, ip=ip))
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            content = response.read().decode('utf-8')
-            match = re.search(r'\(([\s\S]*?)\);', content)
-            if match:
-                result = json.loads(match.group(1))
-                return result["result"], result["msg"]
-            else:
-                return 0, "未知错误"
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.getcode() != 200:
+                return 0, "认证服务器异常"
+            result = drcom_message_parser(response.read().decode('utf-8'))
+            if result:
+                return result.get("result", 0), result.get("msg", "未知错误")
+            return 0, "未知错误"
     except Exception as e:
         return 0, f"网络错误: {e}"
 
@@ -150,38 +153,37 @@ def main():
     set_logger(log_level)
 
     logger.info(f"每{interval}秒检查一次网络状态, 如果掉线则重新认证, CTRL+C 停止程序")
+    
+    check_method = "http" if check_with_http else "socket"
+    check_params = {"url": http_url} if check_with_http else {}
+    
     while True:
-        # 如果网络已经认证, 则不再重复认证
-        connected = False
-        if check_with_http:
-            connected = is_http_connected(http_url)
-        else:  
-            connected=is_internet_connected()
-
-        if connected:
-            logger.debug(f"该网络已认证, 认证账户: {get_account()}, {interval}秒后重新检查网络状态...")
+        # 首先获取认证信息
+        auth_info = get_auth_info()
+        if not auth_info:
+            logger.warning(f"无法获取校园网 IP, 请检查链路是否正常, {interval}秒后重试...")
             time.sleep(interval)
             continue
-
-        # 获取待认证的校园网 IP, 如果获取失败则等待 interval 秒后重试
-        ip = get_ip()
-        if not ip:
-            logger.warning(f"认证失败: 无法获取校园网 IP, 请检查 DHCP 是否正常, {interval}秒后重试...")
-            time.sleep(interval)
-            continue
-
-        # 认证校园网
-        logger.info(f"正在认证: 账户({account}), 设备类型({term_type}), 校园网IP({ip})")
-        result, msg = login(account, password, term_type, ip)
         
-        # 如果失败原因为账号不存在或密码错误, 则直接退出程序
-        if not result and msg in ["账号不存在", "密码错误"]:
-            logger.warning(f"认证失败: {msg}")
-            sys.exit(-1)
-        elif not result:
-            logger.warning(f"认证失败: {msg}, {interval}秒后重试...")
+        # 检查互联网连接状态, 如果 auth_info["NID"] 不存在则表示未认证, 可以跳过互联网连接检查
+        if "NID" in auth_info and check_internet(method=check_method, **check_params):
+            logger.debug(f"网络连接正常, 已认证账户[{auth_info['NID']} {auth_info['uid']}], {interval}秒后重新检查网络状态...")
+            time.sleep(interval)
+            continue
+        
+        # 执行认证
+        logger.info(f"正在认证: 账户({account}), 设备类型({term_type}), 校园网IP({auth_info['v46ip']})")
+        result, msg = login(account, password, term_type, auth_info['v46ip'])
+        
+        # 处理认证结果
+        if not result:
+            if msg in ["账号不存在", "密码错误"]:
+                logger.error(f"认证失败: {msg}")
+                sys.exit(-1)
+            else:
+                logger.warning(f"认证失败: {msg}, {interval}秒后重试...")
         else:
-            logger.info(f"认证成功: {get_account()}, {interval}秒后重新检查网络状态...")
+            logger.info(f"认证成功, {interval}秒后重新检查网络状态...")
         time.sleep(interval)
 
 
