@@ -17,6 +17,76 @@ AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X
 LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/logout"
 
 
+class IfaceHTTPConnection(http.client.HTTPConnection):
+    """使用 setsockopt 的 SO_BINDTODEVICE 选项限制从指定的网络接口建立连接"""
+    
+    def __init__(
+        self, host, port=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+        source_address=None, blocksize=8192, source_interface=None
+    ):
+        super().__init__(
+            host, port, timeout=timeout, 
+            source_address=source_address, blocksize=blocksize
+        )
+        self.source_interface: str = source_interface
+        self._create_connection = self.create_connection
+
+    # this function is copied from socket.py 
+    # since we need to alter its behavior
+    def create_connection(
+        self, address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+        source_address=None, *, all_errors=False
+    ):
+
+        host, port = address
+        exceptions = []
+        for res in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
+            af, socktype, proto, canonname, sa = res
+            sock = None
+            try:
+                sock = socket.socket(af, socktype, proto)
+                if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                    sock.settimeout(timeout)
+                if self.source_interface:
+                    # 使用 SO_BINDTODEVICE 选项绑定到指定的网络接口
+                    sock.setsockopt(
+                        socket.SOL_SOCKET, socket.SO_BINDTODEVICE, 
+                        (self.source_interface+"\0").encode('utf-8')
+                    )
+                elif source_address:
+                    sock.bind(source_address)
+                sock.connect(sa)
+                # Break explicitly a reference cycle
+                exceptions.clear()
+                return sock
+
+            except OSError as exc:
+                if not all_errors:
+                    exceptions.clear()  # raise only the last error
+                exceptions.append(exc)
+                if sock is not None:
+                    sock.close()
+
+        if len(exceptions):
+            try:
+                if not all_errors:
+                    raise exceptions[0]
+                raise ExceptionGroup("create_connection failed", exceptions)
+            finally:
+                # Break explicitly a reference cycle
+                exceptions.clear()
+        else:
+            raise OSError("getaddrinfo returns an empty list")
+        
+class SourceInterfaceHandler(urllib.request.HTTPHandler):
+    """自定义HTTP处理器，用于设置请求的源接口"""
+    def __init__(self, source_interface=None):
+        self.source_interface = source_interface
+        super().__init__()
+    
+    def http_open(self, req):
+        return self.do_open(IfaceHTTPConnection, req, source_interface=self.source_interface)
+
 class SourceAddressHandler(urllib.request.HTTPHandler):
     """自定义HTTP处理器，用于设置请求的源地址"""
     def __init__(self, source_address=None):
@@ -24,13 +94,7 @@ class SourceAddressHandler(urllib.request.HTTPHandler):
         super().__init__()
 
     def http_open(self, req):
-        return self.do_open(lambda *args, **kwargs: self._create_conn(*args, **kwargs), req)
-    
-    def _create_conn(self, host, timeout=None, **kwargs):
-        conn = http.client.HTTPConnection(host, timeout=timeout)
-        if self.source_address:
-            conn.source_address = self.source_address
-        return conn
+        return self.do_open(http.client.HTTPConnection, req, source_address=self.source_address)
 
 
 def get_interface_ip(interface):
@@ -49,15 +113,13 @@ def get_interface_ip(interface):
         return None
 
 
-def create_and_install_opener(interface=None):
+def create_and_install_opener(interface=None, source_address=None):
     """创建并安装自定义opener以设置源地址"""
-    opener = urllib.request.build_opener()
     if interface:
-        interface_ip = get_interface_ip(interface)
-        if interface_ip:
-            opener.add_handler(SourceAddressHandler((interface_ip, 0)))
-        else:
-            logger.debug(f"无法获取接口 {interface} 的IP地址，将使用系统默认接口")
+        opener = urllib.request.build_opener(SourceInterfaceHandler(source_interface=interface))
+    elif source_address:
+        opener = urllib.request.build_opener(SourceAddressHandler((source_address, 0)))
+
     urllib.request.install_opener(opener)
 
 
