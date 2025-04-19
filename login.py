@@ -119,7 +119,10 @@ def create_and_install_opener(interface=None, source_address=None):
         opener = urllib.request.build_opener(SourceInterfaceHandler(source_interface=interface))
     elif source_address:
         opener = urllib.request.build_opener(SourceAddressHandler((source_address, 0)))
-
+    # 未指定 interface 和 address 时使用默认的 opener，不需要额外操作
+    else:
+        return 
+    
     urllib.request.install_opener(opener)
 
 
