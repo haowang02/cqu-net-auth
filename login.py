@@ -293,40 +293,52 @@ def main():
     check_method = "http" if check_with_http else "socket"
     check_params = {"url": http_url} if check_with_http else {}
     
+    status = "init"  # init/auth/unauth
     while True:
+        # 如果是 auth 状态，则检查 Internet 连接, 绕过对认证服务器的访问
+        if status == "auth" and check_internet(method=check_method, interface=interface, **check_params):
+            logger.debug(f"网络连接正常, {interval}秒后重新检查网络状态...")
+            time.sleep(interval)
+            continue
+        
         # 首先获取认证信息
         auth_info = get_auth_info(interface=interface)
         if not auth_info:
-            logger.warning(f"无法获取校园网 IP, 请检查链路是否正常, {interval}秒后重试...")
-            time.sleep(interval)
+            logger.warning(f"无法连接认证服务器")
+            ####################################
+            ###### 这里可以添加 DHCP 重播逻辑 ######
+            ####################################
+            status = "init"
             continue
         
         # 如果当前已认证, 且 uid 与 account 不一致, 则先注销当前认证账户
-        if "uid" in auth_info and auth_info["uid"] != account and logout(interface=interface):
-            logger.info(f"已注销当前认证账户[{auth_info['NID']} {auth_info['uid']}]")
-            del auth_info["uid"]
-            del auth_info["NID"]
+        if auth_info.get("uid") != account and logout(interface=interface):
+            logger.info(f"已注销 {auth_info['uid']}")
+            status = "unauth"
+            continue
         
-        # 检查互联网连接状态, 如果 auth_info["NID"] 不存在则表示未认证, 可以跳过互联网连接检查
-        if "NID" in auth_info and check_internet(method=check_method, interface=interface, **check_params):
-            logger.debug(f"网络连接正常, 已认证账户[{auth_info['NID']} {auth_info['uid']}], {interval}秒后重新检查网络状态...")
-            time.sleep(interval)
+        # 如果当前已认证, 且 uid 与 account 一致, 则不需要重新认证
+        if "uid" in auth_info:
+            logger.debug(f"已认证 {auth_info['uid']}")
+            status = "auth"
             continue
         
         # 执行认证
-        logger.info(f"正在认证: 账户({account}), 设备类型({term_type}), 校园网IP({auth_info['v46ip']})")
         result, msg = login(account, password, term_type, auth_info['v46ip'], interface=interface)
-        
-        # 处理认证结果
         if not result:
+            status = "unauth"
             if msg in ["账号不存在", "密码错误"]:
-                logger.error(f"认证失败: {msg}")
+                logger.error(f"认证失败 {account}({term_type}): {msg}")
                 sys.exit(-1)
+            elif "等待5分钟" in msg:
+                logger.warning(f"触发共享上网检测, 等待 5 分钟...")
+                time.sleep(300)
+                logger.info("等待结束")
             else:
-                logger.warning(f"认证失败: {msg}, {interval}秒后重试...")
+                logger.warning(f"认证失败 {account}({term_type}): {msg}")
         else:
-            logger.info(f"认证成功, {interval}秒后重新检查网络状态...")
-        time.sleep(interval)
+            status = "auth"
+            logger.info(f"认证成功 {account}({term_type})")
 
 
 if __name__ == "__main__":
