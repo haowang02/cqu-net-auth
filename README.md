@@ -72,7 +72,7 @@ docker logs -f cqu-net-auth
 登出校园网
 
 ```bash
-curl -s "http://10.254.7.4:801/eportal/portal/logout"
+python logout.py
 ```
 
 检查当前认证的校园网账户
