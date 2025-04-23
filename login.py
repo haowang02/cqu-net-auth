@@ -15,7 +15,7 @@ ANDROID_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1005&l
 PC_AUTH_URL = "http://10.254.7.4:801/eportal/portal/login?callback=dr1004&login_method=1&user_account=%2C0%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&ua=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F134.0.0.0%20Safari%2F537.36%20Edg%2F134.0.0.0&term_type=1&jsVersion=4.2&terminal_type=1&lang=zh-cn&v=9875&lang=zh"
 AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
 UNBIND_URL = "http://10.254.7.4:801/eportal/portal/mac/unbind?callback=dr1002&user_account={account}&wlan_user_mac=000000000000&wlan_user_ip={int_ip}&jsVersion=4.2&v=6024&lang=zh"
-CHECK_LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/Custom/checkLogout?callback=dr1003&ip={ip}&jsVersion=4.2&v=8573&lang=zh"
+LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/logout"
 
 
 class IfaceHTTPConnection(http.client.HTTPConnection):
@@ -219,6 +219,19 @@ def login(account: str, password: str, term_type: str, ip: str, timeout=3, inter
         return 0, f"网络错误: {e}"
 
 
+def old_logout(timeout=3, interface=None):
+    """传统注销方式"""
+    create_and_install_opener(interface=interface)
+    req = urllib.request.Request(LOGOUT_URL)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.getcode() == 200 and "Radius注销成功！" in response.read().decode('utf-8'):
+                return True
+            return False
+    except Exception:
+        return False
+
+
 def logout(account, ip, timeout=3, interface=None):
     """注销当前认证账户"""
     create_and_install_opener(interface=interface)
@@ -228,10 +241,15 @@ def logout(account, ip, timeout=3, interface=None):
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             if response.getcode() == 200:
-                return drcom_message_parser(response.read().decode('utf-8'))
-            return None
+                result = drcom_message_parser(response.read().decode('utf-8'))
+                if result and "解绑终端MAC成功！" in result.get("msg", ""):
+                    return True
+                elif result and "mac不存在" in result.get("msg", ""):
+                    return old_logout(timeout=timeout, interface=interface)
+                return False
+            return False
     except Exception:
-        return None
+        return False
 
 
 def set_logger(log_level: str):
@@ -315,8 +333,7 @@ def main():
         
         # 如果当前已认证, 且 uid 与 account 不一致, 则先注销当前认证账户
         if "uid" in auth_info and auth_info["uid"] != account:
-            result = logout(auth_info["uid"], auth_info["v46ip"], interface=interface)
-            if result and "解绑终端MAC成功！" in result.get("msg", ""):
+            if logout(auth_info["uid"], auth_info["v46ip"], interface=interface):
                 logger.info(f"已注销 {auth_info['uid']}")
                 status = "unauth"
                 continue

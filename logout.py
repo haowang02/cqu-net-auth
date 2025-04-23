@@ -6,6 +6,7 @@ import urllib.request
 AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
 UNBIND_URL = "http://10.254.7.4:801/eportal/portal/mac/unbind?callback=dr1002&user_account={account}&wlan_user_mac=000000000000&wlan_user_ip={int_ip}&jsVersion=4.2&v=6024&lang=zh"
 CHECK_LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/Custom/checkLogout?callback=dr1003&ip={ip}&jsVersion=4.2&v=8573&lang=zh"
+LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/logout"
 
 
 def ip_to_int(ip):
@@ -17,9 +18,6 @@ def ip_to_int(ip):
 
 def drcom_message_parser(drcom_message):
     """将形如 `dr1004(...);` 或 `dr1002(...)` 的内容解析为 dict"""
-    
-    print(drcom_message)
-    
     match = re.search(r'dr\d+\((.*?)\);?', drcom_message)
     if match:
         json_str = match.group(1)
@@ -74,6 +72,18 @@ def check_logout(ip, timeout=3):
         return None
 
 
+def old_logout(timeout=3):
+    """传统注销方式"""
+    req = urllib.request.Request(LOGOUT_URL)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.getcode() == 200 and "Radius注销成功！" in response.read().decode('utf-8'):
+                return True, "Radius注销成功！"
+            return False, "注销失败"
+    except Exception:
+        return False, "注销失败"
+
+
 def logout():
     """注销校园网认证"""
     auth_info = get_auth_info()
@@ -85,11 +95,10 @@ def logout():
     int_ip = ip_to_int(ip)
     account = auth_info["uid"]
     unbind_result = unbind(account, int_ip)
-    if not unbind_result or "解绑终端MAC成功！" not in unbind_result.get("msg", ""):
-        return False, "解绑失败"
-    # check_logout_result = check_logout(ip)
-    # if not check_logout_result or "获取统一注销地址成功" not in check_logout_result.get("msg", ""):
-    #     return False, "检查注销状态失败"
+    if unbind_result and "解绑终端MAC成功！" in unbind_result.get("msg", ""):
+        return True, "解绑终端MAC成功！"
+    elif unbind_result and "mac不存在" in unbind_result.get("msg", ""):
+        return old_logout()
     return True, "注销成功"
 
 
