@@ -34,11 +34,11 @@ $ python login.py --account 2018xxxx --password xxxxxxxx --term_type pc --log_le
 ```
 # 环境变量传参
 ACCOUNT=校园网账户 PASSWORD=校园网密码 TERM_TYPE=终端类型 python login.py
-# 注意：终端类型选填 android 或 pc
+# 注意：终端类型选填 mobile 或 pc
 
 # 命令行传参 (兼容 Windows 系统)
 python login.py --account 校园网账户 --password 校园网密码 --term_type 终端类型
-# 注意：终端类型选填 android 或 pc
+# 注意：终端类型选填 mobile 或 pc
 ```
 
 ## Docker 容器运行
@@ -57,7 +57,7 @@ docker run -d \
     --restart always \
     -e ACCOUNT="校园网账户" \
     -e PASSWORD="校园网密码" \
-    -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 android 或 pc
+    -e TERM_TYPE="终端类型" \           # 注意：终端类型选填 mobile 或 pc
     cqu-net-auth
 ```
 

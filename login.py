@@ -11,7 +11,7 @@ import argparse
 import http.client
 
 logger = None
-ANDROID_AUTH_URL = "http://login.cqu.edu.cn:801/eportal/portal/login?callback=dr1005&login_method=1&user_account=%2C1%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&term_ua=Mozilla%2F5.0%20(Linux%3B%20Android%208.0.0%3B%20SM-G955U%20Build%2FR16NW)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F144.0.0.0%20Mobile%20Safari%2F537.36%20Edg%2F144.0.0.0&term_type=2&jsVersion=4.2.2&terminal_type=2&lang=zh-cn&v=1176&lang=zh-cn"
+MOBILE_AUTH_URL = "http://login.cqu.edu.cn:801/eportal/portal/login?callback=dr1005&login_method=1&user_account=%2C1%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&term_ua=Mozilla%2F5.0%20(Linux%3B%20Android%208.0.0%3B%20SM-G955U%20Build%2FR16NW)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F144.0.0.0%20Mobile%20Safari%2F537.36%20Edg%2F144.0.0.0&term_type=2&jsVersion=4.2.2&terminal_type=2&lang=zh-cn&v=1176&lang=zh-cn"
 PC_AUTH_URL = "http://login.cqu.edu.cn:801/eportal/portal/login?callback=dr1004&login_method=1&user_account=%2C0%2C{account}&user_password={password}&wlan_user_ip={ip}&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&term_ua=Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20Win64%3B%20x64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F144.0.0.0%20Safari%2F537.36%20Edg%2F144.0.0.0&term_type=1&jsVersion=4.2.2&terminal_type=1&lang=zh-cn&v=1176&lang=zh-cn"
 AUTH_INFO_URL = "http://login.cqu.edu.cn/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
 UNBIND_URL = "http://login.cqu.edu.cn:801/eportal/portal/mac/unbind?callback=dr1002&user_account={account}&wlan_user_mac=000000000000&wlan_user_ip={int_ip}&jsVersion=4.2.2&v=6024&lang=zh"
@@ -205,7 +205,7 @@ def get_auth_info(timeout=3, interface=None):
 def login(account: str, password: str, term_type: str, ip: str, timeout=3, interface=None):
     """认证校园网"""
     create_and_install_opener(interface=interface)
-    auth_url = ANDROID_AUTH_URL if term_type == "android" else PC_AUTH_URL
+    auth_url = MOBILE_AUTH_URL if term_type == "mobile" else PC_AUTH_URL
     req = urllib.request.Request(auth_url.format(account=account, password=password, ip=ip))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -272,7 +272,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--account", type=str, default=os.getenv("ACCOUNT", ""), help="校园网账户(学/工号)")
     parser.add_argument("--password", type=str, default=os.getenv("PASSWORD", ""), help="校园网密码")
-    parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["android", "pc"], help="登录设备类型")
+    parser.add_argument("--term_type", type=str, default=os.getenv("TERM_TYPE", "pc"), choices=["mobile", "pc"], help="登录设备类型")
     parser.add_argument("--log_level", type=str, default=os.getenv("LOG_LEVEL", "info"), choices=["debug", "info"], help="日志级别")
     parser.add_argument("--interval", type=int, default=os.getenv("INTERVAL", 5), help="检查网络状态的间隔时间(秒)")
     parser.add_argument("--check_with_http", action='store_true', default=os.getenv("CHECK_WITH_HTTP", "False").lower() in ('true', 'yes', '1', 't', 'y'), help="使用 HTTP 连接的的结果检查网络状态，默认为 False")
@@ -287,8 +287,8 @@ def parse_args():
         logger.error("未指定校园网账户或密码")
         sys.exit(-1)
     
-    if args.term_type not in ["android", "pc"]:
-        logger.error("登录设备类型必须为 android 或 pc")
+    if args.term_type not in ["mobile", "pc"]:
+        logger.error("登录设备类型必须为 mobile 或 pc")
         sys.exit(-1)
     
     if os.name == "nt" and args.interface:

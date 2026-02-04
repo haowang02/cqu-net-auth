@@ -3,7 +3,7 @@ Description=校园网认证服务
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python /path/to/your/login.py --account --password --term_type android
+ExecStart=/usr/bin/python /path/to/your/login.py --account --password --term_type mobile
 Restart=always
 #User=your_username
 #Group=your_group
