@@ -3,10 +3,10 @@ import json
 import socket
 import urllib.request
 
-AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
-UNBIND_URL = "http://10.254.7.4:801/eportal/portal/mac/unbind?callback=dr1002&user_account={account}&wlan_user_mac=000000000000&wlan_user_ip={int_ip}&jsVersion=4.2&v=6024&lang=zh"
-CHECK_LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/Custom/checkLogout?callback=dr1003&ip={ip}&jsVersion=4.2&v=8573&lang=zh"
-LOGOUT_URL = "http://10.254.7.4:801/eportal/portal/logout"
+AUTH_INFO_URL = "http://login.cqu.edu.cn/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
+UNBIND_URL = "http://login.cqu.edu.cn:801/eportal/portal/mac/unbind?callback=dr1002&user_account={account}&wlan_user_mac=000000000000&wlan_user_ip={int_ip}&jsVersion=4.2.2&v=6024&lang=zh"
+CHECK_LOGOUT_URL = "http://login.cqu.edu.cn:801/eportal/portal/Custom/checkLogout?callback=dr1003&ip={ip}&jsVersion=4.2.2&v=8573&lang=zh"
+LOGOUT_URL = "http://login.cqu.edu.cn:801/eportal/portal/logout"
 
 
 def ip_to_int(ip):
