@@ -78,12 +78,12 @@ python logout.py
 检查当前认证的校园网账户
 ```bash
 # 方法1
-curl -s "http://10.254.7.4/" |
+curl -s "http://login.cqu.edu.cn/" |
   iconv -f GBK -t UTF-8 |
   grep -oP "uid='.*?'|NID='.*?'"
 
 # 方法2
-curl -s "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh" |
+curl -s "http://login.cqu.edu.cn/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh" |
   iconv -f GBK -t UTF-8 |
   sed -E 's/dr1002\((.*)\)/\1/' |
   jq
@@ -91,7 +91,7 @@ curl -s "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&
 
 检查校园网 IP
 ```bash
-curl -s "http://10.254.7.4/a79.htm" |
+curl -s "http://login.cqu.edu.cn/a79.htm" |
   iconv -f GBK -t UTF-8 |
   grep -oP "v46ip='.*?'"
 ```

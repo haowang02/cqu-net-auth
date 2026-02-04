@@ -2,7 +2,7 @@ import re
 import json
 import urllib.request
 
-AUTH_INFO_URL = "http://10.254.7.4/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
+AUTH_INFO_URL = "http://login.cqu.edu.cn/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=5505&lang=zh"
 
 
 def drcom_message_parser(drcom_message):
